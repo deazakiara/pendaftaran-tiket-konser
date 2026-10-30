@@ -12,6 +12,11 @@ return [
     'gate' => '15.00 WIB',
     'venue' => 'Amfiteater Terbuka, Taman Kota',
 
+    'instructors' => [
+        'Elizabeth Nathania' => 'elizabeth.nathania@ciputra.ac.id',
+        'Haning Kumbara' => 'haning.kumbara@ciputra.ac.id',
+    ],
+
     // Awalan kode tiket, hasilnya misal: GSF-7KQ2XM
     'code_prefix' => 'GSF',
 

@@ -16,6 +16,7 @@ class RegistrationController extends Controller
         return view('register', [
             'tickets' => config('konser.tickets'),
             'maxPerOrder' => config('konser.max_per_order'),
+            'instructors' => config('konser.instructors'),
         ]);
     }
 
