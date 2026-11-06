@@ -107,6 +107,7 @@ jobs:
             set -e
             cd "$APP_PATH"
             git pull --ff-only origin main
+            git checkout -- .
             rm -rf vendor public/build
             tar -xzf release-bundle.tar.gz
             rm release-bundle.tar.gz
