@@ -14,8 +14,9 @@ class RegistrationController extends Controller
     public function create()
     {
         return view('register', [
-            'tickets'     => config('konser.tickets'),
+            'tickets' => config('konser.tickets'),
             'maxPerOrder' => config('konser.max_per_order'),
+            'instructors' => config('konser.instructors'),
         ]);
     }
 
@@ -23,28 +24,28 @@ class RegistrationController extends Controller
     public function store(Request $request)
     {
         $tickets = config('konser.tickets');
-        $max     = config('konser.max_per_order');
+        $max = config('konser.max_per_order');
 
         // 1. Cek isian form. Kalau ada yang salah, Laravel otomatis
         //    kembali ke form dan menampilkan pesan error di bawah kolomnya.
         $data = $request->validate([
-            'name'        => ['required', 'string', 'max:100'],
-            'email'       => ['required', 'email', 'max:150'],
-            'phone'       => ['required', 'regex:/^[0-9+\-\s]{8,20}$/'],
+            'name' => ['required', 'string', 'max:100'],
+            'email' => ['required', 'email', 'max:150'],
+            'phone' => ['required', 'regex:/^[0-9+\-\s]{8,20}$/'],
             'ticket_type' => ['required', Rule::in(array_keys($tickets))],
-            'quantity'    => ['required', 'integer', 'min:1', 'max:' . $max],
+            'quantity' => ['required', 'integer', 'min:1', 'max:'.$max],
         ], [
-            'name.required'        => 'Nama wajib diisi.',
-            'email.required'       => 'Email wajib diisi.',
-            'email.email'          => 'Format email belum benar, contoh: nama@gmail.com',
-            'phone.required'       => 'Nomor HP wajib diisi.',
-            'phone.regex'          => 'Nomor HP hanya boleh angka, spasi, + atau -, minimal 8 digit.',
+            'name.required' => 'Nama wajib diisi.',
+            'email.required' => 'Email wajib diisi.',
+            'email.email' => 'Format email belum benar, contoh: nama@gmail.com',
+            'phone.required' => 'Nomor HP wajib diisi.',
+            'phone.regex' => 'Nomor HP hanya boleh angka, spasi, + atau -, minimal 8 digit.',
             'ticket_type.required' => 'Pilih salah satu kategori tiket.',
-            'ticket_type.in'       => 'Kategori tiket tidak dikenal.',
-            'quantity.required'    => 'Pilih jumlah tiket.',
-            'quantity.integer'     => 'Jumlah tiket harus angka.',
-            'quantity.min'         => 'Minimal 1 tiket.',
-            'quantity.max'         => 'Maksimal ' . $max . ' tiket per pendaftaran.',
+            'ticket_type.in' => 'Kategori tiket tidak dikenal.',
+            'quantity.required' => 'Pilih jumlah tiket.',
+            'quantity.integer' => 'Jumlah tiket harus angka.',
+            'quantity.min' => 'Minimal 1 tiket.',
+            'quantity.max' => 'Maksimal '.$max.' tiket per pendaftaran.',
         ]);
 
         // 2. Hitung total harga dan buat kode tiket
@@ -88,7 +89,7 @@ class RegistrationController extends Controller
             for ($i = 0; $i < 6; $i++) {
                 $random .= $chars[random_int(0, strlen($chars) - 1)];
             }
-            $code = config('konser.code_prefix') . '-' . $random;
+            $code = config('konser.code_prefix').'-'.$random;
         } while (Registration::where('ticket_code', $code)->exists());
 
         return $code;

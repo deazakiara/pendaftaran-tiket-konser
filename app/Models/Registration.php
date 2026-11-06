@@ -41,6 +41,6 @@ class Registration extends Model
     // Total dalam format rupiah, misal "Rp 950.000"
     public function totalRupiah(): string
     {
-        return 'Rp ' . number_format($this->total_price, 0, ',', '.');
+        return 'Rp '.number_format($this->total_price, 0, ',', '.');
     }
 }

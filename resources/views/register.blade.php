@@ -20,9 +20,14 @@
             {{-- Nama --}}
             <div class="field">
                 <label for="name">Nama lengkap</label>
-                <input id="name" name="name" type="text" autocomplete="name" required
+                <input id="name" name="name" type="text" list="name-suggestions" autocomplete="name" required
                        value="{{ old('name') }}"
                        @error('name') aria-invalid="true" aria-describedby="name-error" @enderror>
+                <datalist id="name-suggestions">
+                    @foreach ($instructors as $instructorName => $instructorEmail)
+                        <option value="{{ $instructorName }}" label="{{ $instructorEmail }}"></option>
+                    @endforeach
+                </datalist>
                 @error('name') <p class="error" id="name-error">{{ $message }}</p> @enderror
             </div>
 
@@ -95,8 +100,12 @@
     const form    = document.getElementById('ticket-form');
     const totalEl = document.getElementById('total');
     const qty     = document.getElementById('quantity');
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+    const nameSuggestions = document.getElementById('name-suggestions');
     const button  = form.querySelector('button[type="submit"]');
     const label   = button.textContent;
+    let autoFilledEmail = null;
 
     // Hitung ulang total setiap kategori atau jumlah tiket diganti
     function updateTotal() {
@@ -104,7 +113,22 @@
         const price  = picked ? Number(picked.dataset.price) : 0;
         totalEl.textContent = 'Rp ' + (price * Number(qty.value)).toLocaleString('id-ID');
     }
+
+    function updateSuggestedEmail() {
+        const suggestion = Array.from(nameSuggestions.options)
+            .find((option) => option.value === nameInput.value);
+
+        if (suggestion) {
+            emailInput.value = suggestion.label;
+            autoFilledEmail = suggestion.label;
+        } else if (autoFilledEmail && emailInput.value === autoFilledEmail) {
+            emailInput.value = '';
+            autoFilledEmail = null;
+        }
+    }
+
     form.addEventListener('change', updateTotal);
+    nameInput.addEventListener('input', updateSuggestedEmail);
 
     // Kunci tombol setelah diklik, supaya email tidak terkirim dua kali
     form.addEventListener('submit', () => {

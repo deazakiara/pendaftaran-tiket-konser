@@ -16,15 +16,13 @@ class TicketConfirmation extends Mailable
     use Queueable, SerializesModels;
 
     // $registration otomatis bisa dipakai di dalam template email
-    public function __construct(public Registration $registration)
-    {
-    }
+    public function __construct(public Registration $registration) {}
 
     // Subjek email
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'E-tiket ' . config('konser.name') . ': ' . $this->registration->ticket_code,
+            subject: 'E-tiket '.config('konser.name').': '.$this->registration->ticket_code,
         );
     }
 
