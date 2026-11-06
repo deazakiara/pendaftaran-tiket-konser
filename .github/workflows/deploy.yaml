@@ -1,71 +1,117 @@
-# =============================================================
-# Deploy otomatis ke server (VPS) setiap ada push ke branch main.
-#
-# PENTING: GitHub hanya membaca workflow di folder .github/workflows/
-# Jadi di repo Laravel kamu, file ini harus ada di:
-#   .github/workflows/deploy.yaml
-#
-# Isi dulu Secrets di GitHub:
-#   Settings > Secrets and variables > Actions > New repository secret
-#     SSH_HOST  = IP atau domain server, misal 103.10.20.30
-#     SSH_USER  = user untuk login SSH, misal deploy
-#     SSH_KEY   = isi private key SSH (seluruh isi file id_ed25519)
-#     SSH_PORT  = port SSH (boleh dikosongkan kalau pakai 22)
-#     APP_PATH  = folder project di server, misal /var/www/konser
-#
-# File .env TIDAK ikut di-deploy. Buat sekali secara manual di server
-# (isi APP_KEY, DB_* dan MAIL_* di sana), setelah itu tidak perlu diubah lagi.
-# =============================================================
-
-name: Deploy
+name: Laravel 13 CI/CD Deployment
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch: # tombol "Run workflow" manual di tab Actions
+    branches: ["main"]
+  workflow_dispatch:
 
-# Kalau ada 2 push berdekatan, deploy jalan bergantian, tidak bareng
-concurrency:
-  group: deploy-production
-  cancel-in-progress: false
+permissions:
+  contents: read
 
 jobs:
-  deploy:
+  laravel-tests:
+    name: Run Tests and Build Assets
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy lewat SSH
-        uses: appleboy/ssh-action@v1
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.5"
+          extensions: pdo_sqlite
+          tools: composer:v2
+          coverage: none
+
+      - name: Copy environment file
+        run: cp .env.example .env
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Generate application key
+        run: php artisan key:generate
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install NPM dependencies and build assets
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Run Laravel tests
+        run: composer test
+
+  deploy:
+    name: Deploy to hosting
+    needs: laravel-tests
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.5"
+          extensions: pdo_sqlite
+          tools: composer:v2
+          coverage: none
+
+      - name: Install production Composer dependencies
+        run: composer install --no-dev --optimize-autoloader --prefer-dist --no-interaction --no-progress
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build production assets
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Package production dependencies and assets
+        run: tar -czf release-bundle.tar.gz vendor public/build
+
+      - name: Upload package to server
+        uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          source: release-bundle.tar.gz
+          target: ${{ secrets.APP_PATH }}
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          APP_PATH: ${{ secrets.APP_PATH }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          envs: APP_PATH
           script: |
-            # Berhenti di langkah pertama yang gagal.
-            # Kalau gagal, situs tetap di mode maintenance: cek log di tab Actions,
-            # perbaiki, lalu push lagi (atau jalankan "php artisan up" di server).
             set -e
-            cd "${{ secrets.APP_PATH }}"
-
-            # 1. Tampilkan halaman maintenance selama update
-            php artisan down || true
-
-            # 2. Ambil kode terbaru dari GitHub
-            #    (.env dan isi storage/ tidak tersentuh karena tidak ada di git)
-            git fetch origin main
-            git reset --hard origin/main
-
-            # 3. Install library PHP, tanpa paket khusus development
-            composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
-
-            # 4. Update tabel database (misal tabel registrations)
+            cd "$APP_PATH"
+            git pull --ff-only origin main
+            rm -rf vendor public/build
+            tar -xzf release-bundle.tar.gz
+            rm release-bundle.tar.gz
             php artisan migrate --force
-
-            # 5. Simpan cache config, route, dan view supaya situs lebih cepat
+            php artisan optimize:clear
             php artisan config:cache
             php artisan route:cache
             php artisan view:cache
-
-            # 6. Buka lagi situsnya
-            php artisan up
